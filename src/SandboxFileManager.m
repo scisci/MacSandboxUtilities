@@ -1,6 +1,20 @@
 #import "SandboxFileManager.h"
 
 
+@implementation OpenOptions
+
+- (instancetype)init
+{
+  if (self = [super init]) {
+    self.canChooseFiles = NO;
+    self.canChooseDirectories = NO;
+  }
+  
+  return self;
+}
+@end
+
+
 @interface URLResource ()
 {
   NSURL *_url;
@@ -85,20 +99,24 @@
   [defaults setObject:bookmarkData forKey:key];
 }
 
-- (void)openUrl:(NSURL *)url withCompletion:(void (^)(URLResource *resource))completion
+- (void)openUrl:(NSURL *)url withOptions:(OpenOptions *)options withCompletion:(void (^)(URLResource *resource))completion
 {
-  NSData *data = [self getBookmarkData:url];
-  if (data != nil) {
-    BOOL bookmarkDataIsStale;
-    NSURL *allowedURL = [NSURL URLByResolvingBookmarkData:data options:NSURLBookmarkResolutionWithSecurityScope|NSURLBookmarkResolutionWithoutUI relativeToURL:nil bookmarkDataIsStale:&bookmarkDataIsStale error:NULL];
-    if (!bookmarkDataIsStale) {
-      completion([[URLResource alloc] initWithURL:allowedURL isScoped:true]);
-      return;
+  if (url != nil) {
+    NSData *data = [self getBookmarkData:url];
+    if (data != nil) {
+      BOOL bookmarkDataIsStale;
+      NSURL *allowedURL = [NSURL URLByResolvingBookmarkData:data options:NSURLBookmarkResolutionWithSecurityScope|NSURLBookmarkResolutionWithoutUI relativeToURL:nil bookmarkDataIsStale:&bookmarkDataIsStale error:NULL];
+      if (!bookmarkDataIsStale) {
+        completion([[URLResource alloc] initWithURL:allowedURL isScoped:true]);
+        return;
+      }
     }
   }
 
   NSOpenPanel* panel = [NSOpenPanel openPanel];
   panel.delegate = self;
+  panel.canChooseDirectories = options.canChooseDirectories;
+  panel.canChooseFiles = options.canChooseFiles;
 
   [panel beginWithCompletionHandler:^(NSInteger result) {
     if (result == NSModalResponseOK) {
